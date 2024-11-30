@@ -1,4 +1,3 @@
-'''import keras.src.losses
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, Flatten, GlobalAveragePooling2D
 from tensorflow.keras.models import Model
@@ -13,10 +12,8 @@ def augmentation(n):
 
 
 # Directories
-train_data_directory = "Data/train"
-test_data_directory = "Data/test"
-data_directory = "DataV3"
-model_file = "models/page_condition_v7.keras"
+data_directory = "Consolidated_data"
+model_file = "models/dummy.keras"
 
 # Image size and batch size
 image_size = (224, 224)
@@ -25,7 +22,7 @@ batch_size = 32
 # Split the data into 90% training and 10% validation
 train_data = tf.keras.utils.image_dataset_from_directory(
     data_directory,
-    validation_split=0.3,  # 10% for validation
+    validation_split=0.15,  # 10% for validation
     subset="training",     # Load the training set
     seed=123,              # Seed for reproducibility
     image_size=image_size,
@@ -35,7 +32,7 @@ train_data = tf.keras.utils.image_dataset_from_directory(
 
 validation_data = tf.keras.utils.image_dataset_from_directory(
     data_directory,
-    validation_split=0.3,  # 10% for validation
+    validation_split=0.15,  # 10% for validation
     subset="validation",   # Load the validation set
     seed=123,              # Seed for reproducibility
     image_size=image_size,
@@ -44,16 +41,21 @@ validation_data = tf.keras.utils.image_dataset_from_directory(
 )
 
 # Data augmentation layers
-data_augmentation = [
+data_augmentation = tf.keras.Sequential([
     tf.keras.layers.RandomFlip("horizontal"),
     tf.keras.layers.RandomRotation(0.1),
     tf.keras.layers.RandomZoom(0.1),
-]
-
-train_data = train_data.map(lambda x, y: (augmentation(x), y))
+    tf.keras.layers.Rescaling(1.0 / 255)
+])
 
 # Add rescaling layer separately
 rescale_layer = tf.keras.layers.Rescaling(1.0 / 255)
+
+# Augment training data
+train_data = train_data.map(lambda x, y: (rescale_layer(x), y))
+
+# Rescale validation data
+validation_data = validation_data.map(lambda x, y: (rescale_layer(x), y))
 
 # Pre-trained model (MobileNet)
 pre_trained_model = MobileNet(input_shape=[224, 224] + [3], weights="imagenet", include_top=False)
@@ -65,21 +67,18 @@ for layer in pre_trained_model.layers:
 # Model architecture
 inputs = tf.keras.Input(shape=(224, 224, 3))
 
-# Apply rescaling and data augmentation directly to the inputs
-x = rescale_layer(inputs)
-
 # Pass through pre-trained MobileNet
-x = pre_trained_model(x, training=False)
+w = pre_trained_model(inputs, training=False)
 
 # Compression and flattening
-x = GlobalAveragePooling2D()(x)
-x = Flatten()(x)
+w = GlobalAveragePooling2D()(w)
+w = Flatten()(w)
 
 # Add dropout
 # x = keras.layers.Dropout(0.2)(x)
 
 # Output layer
-outputs = Dense(2, activation='softmax')(x)
+outputs = Dense(2, activation='softmax')(w)
 
 # Create the model
 new_model = Model(inputs, outputs)
@@ -87,7 +86,7 @@ new_model = Model(inputs, outputs)
 # Compile the model
 new_model.compile(
     loss='categorical_crossentropy',
-    optimizer=tf.keras.optimizers.Adam(0.001),
+    optimizer=tf.keras.optimizers.Adam(0.01),
     metrics=['accuracy']
 )
 
@@ -104,10 +103,10 @@ r = new_model.fit(
     validation_data=validation_data,
     epochs=50,
     callbacks=callbacks
-)'''
+)
 
 
-import tensorflow as tf
+'''import tensorflow as tf
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import MobileNet
@@ -185,5 +184,5 @@ r = new_model.fit(
     steps_per_epoch=len(training_data),
     validation_steps=len(test_data),
     callbacks=callbacks
-)
+)'''
 
